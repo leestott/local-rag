@@ -192,6 +192,63 @@ Two prompt variants:
 - **Full mode** (~300 tokens): detailed instructions for safety-first, structured responses
 - **Edge mode** (~80 tokens): minimal prompt for constrained devices with limited context windows
 
+## Chunking Strategy
+
+The chunking approach is one of the most important design decisions in any RAG system — it directly affects retrieval accuracy, response quality, and performance. This project uses a **fixed-size sliding window with overlap**, and that choice is deliberate.
+
+### How It Works
+
+Documents are split into chunks of **~200 whitespace-delimited tokens** with a **25-token overlap** between consecutive chunks (configured in [`src/config.js`](src/config.js)). The core logic lives in [`src/chunker.js`](src/chunker.js):
+
+1. YAML front-matter (title, category, id) is stripped and stored as metadata
+2. The body text is tokenized by whitespace
+3. A sliding window walks through the tokens, emitting one chunk per step
+4. Each new window starts 25 tokens before the previous one ended, creating overlap
+5. Documents shorter than 200 tokens are kept as a single chunk
+
+### Why Fixed-Size Sliding Window?
+
+| Design constraint | How fixed-size chunking helps |
+|---|---|
+| **Small local model (Phi-3.5 Mini)** | 200-token chunks keep retrieved context compact, leaving room in the model's context window for the system prompt, conversation, and generated output |
+| **NPU/CPU execution** | No embedding model needed for chunking — just string operations. All compute budget stays with the LLM |
+| **Zero dependencies** | No tokenizer library, no embedding runtime, no vector database. Chunking is pure JavaScript |
+| **Predictable memory** | Every chunk is roughly the same size, so retrieval cost and context usage are consistent and predictable |
+
+### Why Not Other Strategies?
+
+| Alternative | Trade-off |
+|---|---|
+| **Sentence-based** | Chunk sizes vary unpredictably; some safety procedures are single long sentences that wouldn't split well |
+| **Section-aware** (split on `##` headings) | Section lengths vary widely across the 20 docs — some would be too small (wasting retrieval slots), others too large for the model's context window |
+| **Recursive** (LangChain-style) | Better boundary handling, but adds complexity and dependencies for marginal gain on short documents |
+| **Semantic** (embedding-based topic detection) | Best retrieval quality, but requires a second model in memory alongside Phi-3.5 Mini — risky on constrained NPU/CPU hardware with 8–16 GB shared memory |
+
+### Performance Benefits
+
+**For the system:**
+- **~1ms retrieval** — TF-cosine similarity over fixed-size chunks is near-instant, compared to ~100–500ms if an embedding model had to encode each query
+- **Fast ingestion** — all 20 documents are chunked and indexed in under a second; no embedding computation required
+- **Single model in memory** — no embedding model competing with the LLM for limited NPU/RAM resources
+- **Minimal storage** — chunks stored as plain text in SQLite with lightweight TF-IDF vectors; no high-dimensional embedding arrays
+
+**For the end user:**
+- **Instant search results** — the retrieval step adds negligible latency, so the user only waits for the LLM to generate
+- **Higher-quality generation** — compact 200-token chunks mean the model receives focused, relevant context rather than large noisy blocks
+- **Consistent response times** — uniform chunk sizes mean retrieval and generation latency is predictable regardless of which documents are matched
+- **Works on modest hardware** — the lightweight pipeline runs on laptops and field devices without a dedicated GPU
+
+### When to Consider Switching
+
+If you adapt this project for larger or more complex document sets, consider upgrading the chunking strategy:
+
+- **Hundreds of long documents** → recursive or section-aware chunking to better respect document structure
+- **Embedding-based retrieval** → semantic chunking becomes worthwhile when paired with vector similarity search
+- **Mixed content types** (tables, code, prose) → format-aware chunking to keep logical units intact
+- **Higher precision requirements** → sentence-level chunking to avoid partial-match noise
+
+For the current use case — 20 short procedural guides on constrained local hardware — fixed-size sliding window delivers the best balance of simplicity, speed, and retrieval quality.
+
 ## API Endpoints
 
 | Method | Endpoint | Description |
