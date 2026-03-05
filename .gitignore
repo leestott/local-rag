@@ -1,0 +1,42 @@
+# Local RAG DB files
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# Editor / IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build artifacts
+dist/
+build/
+tmp/
+
+# Package manager lock files (optional – remove if you want to commit)
+# package-lock.json
+
+# Foundry Local model cache (large files)
+.foundry/
+models/
