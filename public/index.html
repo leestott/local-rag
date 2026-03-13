@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gas Field Support Agent</title>
   <style>
     /* ── Base: high-contrast, large text for field use ── */
@@ -208,6 +208,8 @@
       font-weight: 700;
       cursor: pointer;
       min-width: 80px;
+      min-height: 48px;
+      touch-action: manipulation;
       transition: opacity 0.15s;
     }
     #send-btn:disabled {
@@ -235,6 +237,8 @@
       font-size: 0.82rem;
       cursor: pointer;
       white-space: nowrap;
+      min-height: 44px;
+      touch-action: manipulation;
       transition: border-color 0.15s;
     }
     .quick-btn:hover {
@@ -272,6 +276,8 @@
       padding: 12px 14px;
       font-size: 1.1rem;
       cursor: pointer;
+      min-height: 48px;
+      touch-action: manipulation;
       transition: border-color 0.15s;
       display: flex;
       align-items: center;
@@ -316,6 +322,8 @@
       cursor: pointer;
     }
     .modal-close:hover { color: var(--text); }
+    .safety-warning { color: var(--warning); }
+    .upload-description { color: var(--text-muted); font-size: 0.85rem; margin: 0 0 16px; }
     .drop-zone {
       border: 2px dashed var(--border);
       border-radius: var(--radius);
@@ -376,12 +384,37 @@
     }
     @media (max-width: 600px) {
       html { font-size: 16px; }
+      header { padding: 10px 12px; }
+      header h1 { font-size: 0.95rem; gap: 6px; }
+      header h1 .icon { font-size: 1.2rem; }
+      .controls { gap: 8px; }
+      .toggle-label { font-size: 0.7rem; }
+      .status { font-size: 0.7rem; padding: 3px 8px; }
       .message { max-width: 98%; padding: 10px 14px; }
-      #quick-actions { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
-      .quick-btn { flex-shrink: 0; }
-      header h1 { font-size: 1rem; }
-      #input-area { padding: 8px 10px; }
-      .modal { width: 95%; padding: 16px; }
+      #quick-actions {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding: 6px 10px;
+        gap: 6px;
+      }
+      .quick-btn { flex-shrink: 0; padding: 8px 12px; font-size: 0.78rem; min-height: 40px; }
+      #chat { padding: 10px; gap: 12px; }
+      #input-area { padding: 8px 10px; gap: 8px; }
+      #input-area textarea { padding: 10px 12px; font-size: 0.95rem; }
+      #send-btn { padding: 10px 16px; min-width: 64px; font-size: 0.95rem; }
+      #upload-btn { padding: 10px 12px; font-size: 1rem; }
+      .modal { width: 95%; padding: 16px; max-height: 90vh; }
+      .modal h2 { font-size: 1rem; }
+      .drop-zone { padding: 24px 12px; }
+      .sources { font-size: 0.72rem; }
+      .source-item { flex-direction: column; gap: 2px; }
+    }
+    @media (max-width: 380px) {
+      html { font-size: 15px; }
+      header h1 .title-text { display: none; }
+      header h1::after { content: "Gas Support"; font-size: 0.95rem; }
+      .quick-btn { padding: 6px 10px; font-size: 0.72rem; }
+      #send-btn { min-width: 56px; padding: 10px 12px; }
     }
   </style>
 </head>
@@ -390,7 +423,7 @@
 <header>
   <h1>
     <span class="icon">🔧</span>
-    Gas Field Support Agent
+    <span class="title-text">Gas Field Support Agent</span>
   </h1>
   <div class="controls">
     <label class="toggle-label">
@@ -414,17 +447,9 @@
 
 <div id="chat">
   <div class="message agent">
-    <strong>Gas Field Support Agent – Ready</strong><br>
-    Running locally on this device. No internet connection required.<br><br>
-    Ask me about:
-    <ul>
-      <li>Gas leak detection &amp; safety procedures</li>
-      <li>Fault diagnosis &amp; decision trees</li>
-      <li>Equipment maintenance &amp; repair steps</li>
-      <li>Pressure testing &amp; valve inspection</li>
-      <li>PPE requirements &amp; compliance</li>
-    </ul>
-    <em style="color: var(--warning);">⚠️ Always follow your site-specific safety procedures.</em>
+    <strong>⏳ Initializing...</strong><br>
+    Starting the AI model. This may take a moment on first run.<br><br>
+    <em style="color: var(--text-muted);">The chat will be available once the model is loaded.</em>
   </div>
 </div>
 
@@ -444,7 +469,7 @@
   <div class="modal">
     <button class="modal-close" id="upload-close">&times;</button>
     <h2>📄 Upload Document</h2>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0 0 16px;">
+    <p class="upload-description">
       Add a <strong>.md</strong> or <strong>.txt</strong> file to the local knowledge base.
       It will be chunked and indexed immediately.
     </p>
@@ -574,20 +599,104 @@
     }
   }
 
-  // ── Health check ──
-  async function checkHealth() {
+  // ── Init status: connect to SSE stream for model download/load progress ──
+  let modelReady = false;
+
+  function connectStatus() {
     try {
-      const res = await fetch('/api/health');
-      if (res.ok) {
-        statusEl.textContent = 'Offline Ready';
-        statusEl.className = 'status online';
-      }
+      const evtSource = new EventSource('/api/status');
+      evtSource.onmessage = (e) => {
+        try {
+          const status = JSON.parse(e.data);
+          updateInitStatus(status);
+          if (status.phase === 'ready') {
+            modelReady = true;
+            evtSource.close();
+            sendBtn.disabled = false;
+          }
+        } catch { /* ignore parse errors */ }
+      };
+      evtSource.onerror = () => {
+        evtSource.close();
+        // Retry after a short delay if not ready yet
+        if (!modelReady) {
+          statusEl.textContent = 'Connecting...';
+          statusEl.className = 'status loading';
+          setTimeout(connectStatus, 2000);
+        }
+      };
     } catch {
       statusEl.textContent = 'Disconnected';
       statusEl.className = 'status offline';
     }
   }
-  checkHealth();
+
+  function updateInitStatus(status) {
+    switch (status.phase) {
+      case 'download': {
+        const pct = status.progress !== undefined ? Math.round(status.progress * 100) : 0;
+        statusEl.textContent = `Downloading ${pct}%`;
+        statusEl.className = 'status loading';
+        // Update the welcome message with download progress
+        const welcomeMsg = chat.querySelector('.message.agent');
+        if (welcomeMsg && !welcomeMsg.dataset.replaced) {
+          welcomeMsg.innerHTML = `<strong>⏳ Downloading Model...</strong><br>` +
+            `The AI model is being downloaded for the first time. This only happens once.<br><br>` +
+            `<div style="background:var(--bg);border-radius:var(--radius);padding:8px 12px;margin:8px 0;">` +
+            `<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:0.85rem;">` +
+            `<span>Progress</span><span id="dl-pct">${pct}%</span></div>` +
+            `<div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">` +
+            `<div id="dl-bar" style="background:var(--accent);height:100%;width:${pct}%;transition:width 0.3s;"></div>` +
+            `</div></div>` +
+            `<em style="color:var(--text-muted);font-size:0.85rem;">The application will be ready once the download completes.</em>`;
+          welcomeMsg.dataset.replaced = 'download';
+        } else if (welcomeMsg && welcomeMsg.dataset.replaced === 'download') {
+          const bar = document.getElementById('dl-bar');
+          const pctEl = document.getElementById('dl-pct');
+          if (bar) bar.style.width = pct + '%';
+          if (pctEl) pctEl.textContent = pct + '%';
+        }
+        break;
+      }
+      case 'loading':
+        statusEl.textContent = 'Loading Model...';
+        statusEl.className = 'status loading';
+        break;
+      case 'catalog':
+      case 'variant':
+      case 'cached':
+      case 'init':
+        statusEl.textContent = status.message;
+        statusEl.className = 'status loading';
+        break;
+      case 'ready':
+        statusEl.textContent = 'Offline Ready';
+        statusEl.className = 'status online';
+        // Always restore the welcome message when ready
+        const welcomeMsgReady = chat.querySelector('.message.agent');
+        if (welcomeMsgReady) {
+          welcomeMsgReady.innerHTML = `<strong>Gas Field Support Agent – Ready</strong><br>` +
+            `Running locally on this device. No internet connection required.<br><br>` +
+            `Ask me about:<ul>` +
+            `<li>Gas leak detection &amp; safety procedures</li>` +
+            `<li>Fault diagnosis &amp; decision trees</li>` +
+            `<li>Equipment maintenance &amp; repair steps</li>` +
+            `<li>Pressure testing &amp; valve inspection</li>` +
+            `<li>PPE requirements &amp; compliance</li></ul>` +
+            `<em style="color:var(--warning);">⚠️ Always follow your site-specific safety procedures.</em>`;
+          delete welcomeMsgReady.dataset.replaced;
+        }
+        break;
+      case 'error':
+        statusEl.textContent = 'Error';
+        statusEl.className = 'status offline';
+        break;
+    }
+  }
+
+  // Disable send until model is ready
+  sendBtn.disabled = true;
+  connectStatus();
 
   // ── Auto-resize textarea ──
   input.addEventListener('input', () => {
@@ -701,7 +810,7 @@
   // ── Send message ──
   async function sendMessage() {
     const text = input.value.trim();
-    if (!text || sending) return;
+    if (!text || sending || !modelReady) return;
 
     sending = true;
     sendBtn.disabled = true;

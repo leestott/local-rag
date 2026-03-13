@@ -158,9 +158,44 @@ app.get("/api/docs", (_req, res) => {
 });
 
 // ── API: Health check ──
+let engineReady = false;
+let lastStatus = { phase: "init", message: "Starting..." };
+
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", model: config.model });
+  res.json({ status: engineReady ? "ok" : "loading", model: config.model, ...lastStatus });
 });
+
+// ── API: Init status stream (SSE) — shows download/load progress to the UI ──
+const statusClients = new Set();
+
+app.get("/api/status", (_req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  // Send current status immediately
+  res.write(`data: ${JSON.stringify(lastStatus)}\n\n`);
+
+  if (engineReady) {
+    res.write(`data: ${JSON.stringify({ phase: "ready", message: "Ready" })}\n\n`);
+    res.end();
+    return;
+  }
+
+  statusClients.add(res);
+  _req.on("close", () => statusClients.delete(res));
+});
+
+function broadcastStatus(status) {
+  lastStatus = status;
+  for (const client of statusClients) {
+    client.write(`data: ${JSON.stringify(status)}\n\n`);
+    if (status.phase === "ready") {
+      client.end();
+    }
+  }
+  if (status.phase === "ready") statusClients.clear();
+}
 
 // ── Fallback: serve index.html for SPA ──
 app.get("*", (_req, res) => {
@@ -171,15 +206,25 @@ app.get("*", (_req, res) => {
 async function start() {
   console.log("=== Gas Field RAG – Local Support Agent ===\n");
 
-  await engine.init();
+  // Register status callback to relay progress to connected UI clients
+  engine.onStatus((status) => broadcastStatus(status));
 
+  // Start the HTTP server first so the UI is immediately accessible
   app.listen(config.port, config.host, () => {
-    console.log(`\n[Server] Running at http://${config.host}:${config.port}`);
-    console.log("[Server] Fully offline – no outbound connections.\n");
+    console.log(`[Server] UI available at http://${config.host}:${config.port}`);
+    console.log("[Server] Initializing model in background...\n");
   });
+
+  // Initialize the engine (downloads model if needed, loads it)
+  await engine.init();
+  engineReady = true;
+  broadcastStatus({ phase: "ready", message: "Ready" });
+
+  console.log("[Server] Fully offline – no outbound connections.\n");
 }
 
 start().catch((err) => {
   console.error("Failed to start:", err);
+  broadcastStatus({ phase: "error", message: err.message || "Failed to start" });
   process.exit(1);
 });

@@ -61,9 +61,7 @@ Before you begin, make sure you have:
   ```
   winget install Microsoft.FoundryLocal
   ```
-- The **phi-3.5-mini** model (auto-downloaded on first run via the SDK — ~2 GB)
-
-> **Tip:** Run `foundry model list` to check which models are already cached on your machine.
+- The **phi-3.5-mini** model (auto-downloaded on first run via the SDK, approximately 2 GB)
 
 ## Quick Start
 
@@ -87,7 +85,7 @@ Open **http://127.0.0.1:3000** in a browser. You should see the landing page wit
 ### What Happens at Startup
 
 1. **`npm run ingest`** reads every `.md` file in `docs/`, splits them into overlapping chunks, computes TF-IDF vectors, and stores everything in `data/rag.db` (SQLite).
-2. **`npm start`** launches Foundry Local, loads the Phi-3.5 Mini model, opens the vector store, and starts the Express server on port 3000.
+2. **`npm start`** uses the Foundry Local SDK to discover and load the Phi-3.5 Mini model from the local catalog, opens the vector store, and starts the Express server on port 3000.
 
 ## Chatting with the Agent
 
@@ -285,20 +283,22 @@ Toggle **Edge Mode** in the UI header for constrained devices:
 
 ### What is Foundry Local?
 
-[Foundry Local](https://foundrylocal.ai) is Microsoft's on-device AI runtime. It lets you run small language models (SLMs) like Phi-3.5 Mini directly on your laptop or workstation — no GPU required, no cloud dependency. It exposes an **OpenAI-compatible API**, so you can use the standard `openai` npm package to interact with it.
+[Foundry Local](https://foundrylocal.ai) is Microsoft's on-device AI runtime. It lets you run small language models (SLMs) like Phi-3.5 Mini directly on your laptop or workstation, with no GPU required and no cloud dependency. The SDK manages model discovery, downloading, loading, and inference entirely programmatically.
 
 ```js
 import { FoundryLocalManager } from "foundry-local-sdk";
-import { OpenAI } from "openai";
 
-const manager = new FoundryLocalManager();
-const modelInfo = await manager.init("phi-3.5-mini");
+// Create the manager and discover models via the catalog
+const manager = FoundryLocalManager.create();
+const model = manager.catalog.getModel("phi-3.5-mini");
+await model.load();
 
-// Use the standard OpenAI client — just point it at the local endpoint
-const client = new OpenAI({
-  baseURL: manager.endpoint,  // e.g. "http://127.0.0.1:<dynamic-port>/v1"
-  apiKey: manager.apiKey,
-});
+// Create a chat client and start generating
+const chatClient = model.createChatClient();
+const response = await chatClient.completeChat([
+  { role: "user", content: "How do I detect a gas leak?" }
+]);
+console.log(response.choices[0].message.content);
 ```
 
 ### What is TF-IDF?
@@ -335,7 +335,7 @@ This project is a scenario sample — you can fork it and adapt it to any domain
 1. **Replace the documents** in `docs/` with your own `.md` files (product manuals, internal wikis, support articles)
 2. **Edit the system prompt** in `src/prompts.js` to match your domain and tone
 3. **Adjust chunk sizes** in `src/config.js` — smaller chunks for precise retrieval, larger for more context
-4. **Swap the model** — change `config.model` to any Foundry Local-supported model (run `foundry model list` to see available models)
+4. **Swap the model** in `src/config.js` to any model available in the Foundry Local catalog
 5. **Customise the UI** — the frontend is a single HTML file with inline CSS, easy to modify
 
 ## License

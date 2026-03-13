@@ -1,9 +1,10 @@
 /**
  * Foundry Local chat engine.
- * Connects to the local Foundry service (dynamic port),
- * performs RAG retrieval, and generates responses.
+ * Uses the Foundry Local SDK to discover, load, and run inference
+ * on a local model. Performs RAG retrieval and generates responses.
+ * Selects the hardware-optimised model variant automatically and
+ * reports download/load progress via a status callback.
  */
-import { OpenAI } from "openai";
 import { FoundryLocalManager } from "foundry-local-sdk";
 import { VectorStore } from "./vectorStore.js";
 import { config } from "./config.js";
@@ -11,36 +12,69 @@ import { SYSTEM_PROMPT, SYSTEM_PROMPT_COMPACT } from "./prompts.js";
 
 export class ChatEngine {
   constructor() {
-    this.openai = null;
-    this.modelId = null;
+    this.chatClient = null;
+    this.model = null;
     this.store = null;
     this.compactMode = false;
+    this.modelAlias = null;
+    /** @type {(status: {phase: string, message: string, progress?: number}) => void} */
+    this._statusCallback = null;
+  }
+
+  /** Register a callback that receives init status updates for the UI. */
+  onStatus(callback) {
+    this._statusCallback = callback;
+  }
+
+  _emitStatus(phase, message, progress) {
+    const status = { phase, message, ...(progress !== undefined && { progress }) };
+    console.log(`[ChatEngine] ${message}`);
+    if (this._statusCallback) this._statusCallback(status);
   }
 
   /**
-   * Initialize the engine: start Foundry Local, load model, open vector store.
+   * Initialize the engine: create Foundry Local manager, discover and load
+   * the best model variant for this hardware, and open the vector store.
    */
   async init() {
-    console.log("[ChatEngine] Initializing Foundry Local...");
+    this._emitStatus("init", "Initializing Foundry Local SDK...");
 
-    // Start Foundry Local service and load model (handles dynamic port)
-    const manager = new FoundryLocalManager();
-    const modelInfo = await manager.init(config.model);
-    this.modelId = modelInfo.id;
+    // Create the manager (requires appName)
+    const manager = FoundryLocalManager.create({ appName: "gas-field-local-rag" });
+    const catalog = manager.catalog;
 
-    console.log(`[ChatEngine] Model loaded: ${this.modelId}`);
-    console.log(`[ChatEngine] Endpoint: ${manager.endpoint}`);
+    this._emitStatus("catalog", "Discovering available models...");
+    this.model = await catalog.getModel(config.model);
+    this.modelAlias = this.model.alias;
 
-    // Create OpenAI client pointed at local Foundry service
-    this.openai = new OpenAI({
-      baseURL: manager.endpoint,
-      apiKey: manager.apiKey,
-    });
+    // The SDK auto-selects the best variant for this hardware (GPU > NPU > CPU)
+    this._emitStatus("variant", `Selected model: ${this.modelAlias}`);
+
+    // Download the model if not already cached, with progress reporting
+    if (!this.model.isCached) {
+      this._emitStatus("download", `Downloading ${this.modelAlias}... This may take a few minutes on first run.`, 0);
+      await this.model.download((progress) => {
+        const pct = Math.round(progress * 100);
+        this._emitStatus("download", `Downloading ${this.modelAlias}... ${pct}%`, progress);
+      });
+      this._emitStatus("download", `Download complete.`, 1);
+    } else {
+      this._emitStatus("cached", `Model ${this.modelAlias} is already cached.`);
+    }
+
+    // Load the model into memory
+    this._emitStatus("loading", `Loading ${this.modelAlias} into memory...`);
+    await this.model.load();
+
+    // Create the native chat client with performance settings pre-configured
+    this.chatClient = this.model.createChatClient();
+    this.chatClient.settings.temperature = 0.1; // Low for deterministic, safety-critical responses
+    this._emitStatus("ready", `Model ready: ${this.modelAlias}`);
 
     // Open the local vector store
     this.store = new VectorStore(config.dbPath);
     const count = this.store.count();
-    console.log(`[ChatEngine] Vector store ready: ${count} chunks indexed.`);
+    this._emitStatus("ready", `Vector store ready: ${count} chunks indexed.`);
 
     if (count === 0) {
       console.warn("[ChatEngine] WARNING: No documents ingested. Run 'npm run ingest' first.");
@@ -104,13 +138,9 @@ export class ChatEngine {
       { role: "user", content: userMessage },
     ];
 
-    // 3. Call the local model
-    const response = await this.openai.chat.completions.create({
-      model: this.modelId,
-      messages,
-      temperature: 0.1,      // Low temperature for deterministic, safety-critical responses
-      max_tokens: this.compactMode ? 512 : 1024,
-    });
+    // 3. Call the local model via the native chat client
+    this.chatClient.settings.maxTokens = this.compactMode ? 512 : 1024;
+    const response = await this.chatClient.completeChat(messages);
 
     return {
       text: response.choices[0].message.content,
@@ -144,13 +174,20 @@ export class ChatEngine {
       { role: "user", content: userMessage },
     ];
 
-    // 3. Stream from the local model
-    const stream = await this.openai.chat.completions.create({
-      model: this.modelId,
-      messages,
-      temperature: 0.1,
-      max_tokens: this.compactMode ? 512 : 1024,
-      stream: true,
+    // 3. Stream from the local model via the SDK's callback-based streaming
+    this.chatClient.settings.maxTokens = this.compactMode ? 512 : 1024;
+
+    // Buffer chunks from the callback and yield them as an async iterable
+    const textChunks = [];
+    let resolve;
+    let done = false;
+
+    const streamPromise = this.chatClient.completeStreamingChat(messages, (chunk) => {
+      textChunks.push(chunk);
+      if (resolve) { resolve(); resolve = null; }
+    }).then(() => {
+      done = true;
+      if (resolve) { resolve(); resolve = null; }
     });
 
     // Yield sources metadata first
@@ -164,16 +201,28 @@ export class ChatEngine {
       })),
     };
 
-    // Yield text chunks
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) {
-        yield { type: "text", data: content };
+    // Yield text chunks from the SDK streaming callback buffer
+    while (!done || textChunks.length > 0) {
+      if (textChunks.length === 0 && !done) {
+        await new Promise((r) => { resolve = r; });
+      }
+      while (textChunks.length > 0) {
+        const chunk = textChunks.shift();
+        const content = chunk.choices?.[0]?.delta?.content;
+        if (content) {
+          yield { type: "text", data: content };
+        }
       }
     }
+
+    // Ensure the stream promise resolves cleanly
+    await streamPromise;
   }
 
   close() {
+    if (this.model) {
+      this.model.unload().catch(() => {});
+    }
     if (this.store) this.store.close();
   }
 }
