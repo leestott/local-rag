@@ -227,9 +227,6 @@
       gap: 8px;
       flex-wrap: nowrap;
       overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
       background: var(--surface);
     }
     #quick-actions::-webkit-scrollbar { display: none; }
@@ -329,6 +326,7 @@
     }
     .modal-close:hover { color: var(--text); }
     .safety-warning { color: var(--warning); }
+    .init-hint { color: var(--text-muted); }
     .upload-description { color: var(--text-muted); font-size: 0.85rem; margin: 0 0 16px; }
     .drop-zone {
       border: 2px dashed var(--border);
@@ -462,7 +460,7 @@
   <div class="message agent">
     <strong>⏳ Initializing...</strong><br>
     Starting the AI model. This may take a moment on first run.<br><br>
-    <em style="color: var(--text-muted);">The chat will be available once the model is loaded.</em>
+    <em class="init-hint">The chat will be available once the model is loaded.</em>
   </div>
 </div>
 
