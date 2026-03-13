@@ -570,7 +570,7 @@
         return;
       }
       showUploadStatus('success',
-        `✓ ${data.filename} indexed — ${data.chunks} chunk(s). Total: ${data.totalChunks} chunks.`);
+        `✓ ${data.filename} indexed: ${data.chunks} chunk(s). Total: ${data.totalChunks} chunks.`);
       loadDocList();
       // Notify in chat
       addMessage('agent', `📄 **Document uploaded:** ${data.title} [${data.category}]\n${data.chunks} chunk(s) added to local knowledge base.`);

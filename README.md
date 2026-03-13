@@ -7,7 +7,7 @@
 
 # Gas Field Local RAG – Offline Support Agent
 
-A fully offline, on-device **Retrieval-Augmented Generation (RAG)** support agent for gas field inspection and maintenance engineers. Built with **[Foundry Local](https://foundrylocal.ai)** and **Phi-3.5 Mini Instruct**, this sample shows you how to build a production-style RAG application that runs entirely on your machine — no cloud, no API keys, no internet required.
+A fully offline, on-device **Retrieval-Augmented Generation (RAG)** support agent for gas field inspection and maintenance engineers. Built with **[Foundry Local](https://foundrylocal.ai)** and **Phi-3.5 Mini Instruct**, this sample shows you how to build a production-style RAG application that runs entirely on your machine: no cloud, no API keys, no internet required.
 
 ![Landing Page – Desktop](screenshots/01-landing-page.png)
 
@@ -21,7 +21,7 @@ If you're a developer getting started with AI-powered applications, this project
 2. **Running AI models locally** with [Foundry Local](https://foundrylocal.ai) (no GPU required, works on CPU/NPU)
 3. **Building a mobile-responsive web UI** that works in the field (large touch targets, high contrast, PWA-ready)
 4. **Streaming AI responses** using Server-Sent Events (SSE)
-5. **TF-IDF vector search** with SQLite — no external vector database needed
+5. **TF-IDF vector search** with SQLite: no external vector database needed
 
 ## Architecture
 
@@ -56,8 +56,8 @@ If you're a developer getting started with AI-powered applications, this project
 
 Before you begin, make sure you have:
 
-- **Node.js** ≥ 20 — [Download here](https://nodejs.org/)
-- **Foundry Local** — Microsoft's on-device AI runtime
+- **Node.js** ≥ 20: [Download here](https://nodejs.org/)
+- **Foundry Local**: Microsoft's on-device AI runtime
   ```
   winget install Microsoft.FoundryLocal
   ```
@@ -99,7 +99,7 @@ Every response includes expandable source references so you can verify which doc
 
 ### Mobile Chat
 
-The UI is fully responsive — the same interface works on mobile devices with appropriately sized touch targets:
+The UI is fully responsive: the same interface works on mobile devices with appropriately sized touch targets:
 
 ![Mobile chat view](screenshots/06-mobile-chat.png)
 
@@ -192,7 +192,7 @@ Two prompt variants:
 
 ## Chunking Strategy
 
-The chunking approach is one of the most important design decisions in any RAG system — it directly affects retrieval accuracy, response quality, and performance. This project uses a **fixed-size sliding window with overlap**, and that choice is deliberate.
+The chunking approach is one of the most important design decisions in any RAG system: it directly affects retrieval accuracy, response quality, and performance. This project uses a **fixed-size sliding window with overlap**, and that choice is deliberate.
 
 ### How It Works
 
@@ -209,7 +209,7 @@ Documents are split into chunks of **~200 whitespace-delimited tokens** with a *
 | Design constraint | How fixed-size chunking helps |
 |---|---|
 | **Small local model (Phi-3.5 Mini)** | 200-token chunks keep retrieved context compact, leaving room in the model's context window for the system prompt, conversation, and generated output |
-| **NPU/CPU execution** | No embedding model needed for chunking — just string operations. All compute budget stays with the LLM |
+| **NPU/CPU execution** | No embedding model needed for chunking: just string operations. All compute budget stays with the LLM |
 | **Zero dependencies** | No tokenizer library, no embedding runtime, no vector database. Chunking is pure JavaScript |
 | **Predictable memory** | Every chunk is roughly the same size, so retrieval cost and context usage are consistent and predictable |
 
@@ -218,23 +218,23 @@ Documents are split into chunks of **~200 whitespace-delimited tokens** with a *
 | Alternative | Trade-off |
 |---|---|
 | **Sentence-based** | Chunk sizes vary unpredictably; some safety procedures are single long sentences that wouldn't split well |
-| **Section-aware** (split on `##` headings) | Section lengths vary widely across the 20 docs — some would be too small (wasting retrieval slots), others too large for the model's context window |
+| **Section-aware** (split on `##` headings) | Section lengths vary widely across the 20 docs: some would be too small (wasting retrieval slots), others too large for the model's context window |
 | **Recursive** (LangChain-style) | Better boundary handling, but adds complexity and dependencies for marginal gain on short documents |
-| **Semantic** (embedding-based topic detection) | Best retrieval quality, but requires a second model in memory alongside Phi-3.5 Mini — risky on constrained NPU/CPU hardware with 8–16 GB shared memory |
+| **Semantic** (embedding-based topic detection) | Best retrieval quality, but requires a second model in memory alongside Phi-3.5 Mini: risky on constrained NPU/CPU hardware with 8–16 GB shared memory |
 
 ### Performance Benefits
 
 **For the system:**
-- **~1ms retrieval** — TF-cosine similarity over fixed-size chunks is near-instant, compared to ~100–500ms if an embedding model had to encode each query
-- **Fast ingestion** — all 20 documents are chunked and indexed in under a second; no embedding computation required
-- **Single model in memory** — no embedding model competing with the LLM for limited NPU/RAM resources
-- **Minimal storage** — chunks stored as plain text in SQLite with lightweight TF-IDF vectors; no high-dimensional embedding arrays
+- **~1ms retrieval**: TF-cosine similarity over fixed-size chunks is near-instant, compared to ~100–500ms if an embedding model had to encode each query
+- **Fast ingestion**: all 20 documents are chunked and indexed in under a second; no embedding computation required
+- **Single model in memory**: no embedding model competing with the LLM for limited NPU/RAM resources
+- **Minimal storage**: chunks stored as plain text in SQLite with lightweight TF-IDF vectors; no high-dimensional embedding arrays
 
 **For the end user:**
-- **Instant search results** — the retrieval step adds negligible latency, so the user only waits for the LLM to generate
-- **Higher-quality generation** — compact 200-token chunks mean the model receives focused, relevant context rather than large noisy blocks
-- **Consistent response times** — uniform chunk sizes mean retrieval and generation latency is predictable regardless of which documents are matched
-- **Works on modest hardware** — the lightweight pipeline runs on laptops and field devices without a dedicated GPU
+- **Instant search results**: the retrieval step adds negligible latency, so the user only waits for the LLM to generate
+- **Higher-quality generation**: compact 200-token chunks mean the model receives focused, relevant context rather than large noisy blocks
+- **Consistent response times**: uniform chunk sizes mean retrieval and generation latency is predictable regardless of which documents are matched
+- **Works on modest hardware**: the lightweight pipeline runs on laptops and field devices without a dedicated GPU
 
 ### When to Consider Switching
 
@@ -245,7 +245,7 @@ If you adapt this project for larger or more complex document sets, consider upg
 - **Mixed content types** (tables, code, prose) → format-aware chunking to keep logical units intact
 - **Higher precision requirements** → sentence-level chunking to avoid partial-match noise
 
-For the current use case — 20 short procedural guides on constrained local hardware — fixed-size sliding window delivers the best balance of simplicity, speed, and retrieval quality.
+For the current use case: 20 short procedural guides on constrained local hardware: fixed-size sliding window delivers the best balance of simplicity, speed, and retrieval quality.
 
 ## API Endpoints
 
@@ -305,11 +305,11 @@ console.log(response.choices[0].message.content);
 
 TF-IDF (Term Frequency–Inverse Document Frequency) is a classic information retrieval technique. Each document chunk is converted into a numeric vector based on how important each word is within that chunk relative to all chunks. At query time, the user's question is vectorized the same way and compared against all stored vectors using cosine similarity.
 
-This project uses TF-IDF instead of embedding models to keep everything lightweight and offline — no embedding API or large model needed for retrieval.
+This project uses TF-IDF instead of embedding models to keep everything lightweight and offline: no embedding API or large model needed for retrieval.
 
 ### Why SQLite for Vectors?
 
-For small-to-medium document collections (hundreds to low thousands of chunks), SQLite is fast enough for brute-force cosine similarity search and adds zero infrastructure. No need for Pinecone, Qdrant, or Chroma — just a single `.db` file on disk.
+For small-to-medium document collections (hundreds to low thousands of chunks), SQLite is fast enough for brute-force cosine similarity search and adds zero infrastructure. No need for Pinecone, Qdrant, or Chroma: just a single `.db` file on disk.
 
 ## Running Tests
 
@@ -330,13 +330,13 @@ Tests use the built-in Node.js test runner (no extra dependencies). They cover t
 
 ## Adapting This for Your Own Use Case
 
-This project is a scenario sample — you can fork it and adapt it to any domain:
+This project is a scenario sample: you can fork it and adapt it to any domain:
 
 1. **Replace the documents** in `docs/` with your own `.md` files (product manuals, internal wikis, support articles)
 2. **Edit the system prompt** in `src/prompts.js` to match your domain and tone
-3. **Adjust chunk sizes** in `src/config.js` — smaller chunks for precise retrieval, larger for more context
+3. **Adjust chunk sizes** in `src/config.js`: smaller chunks for precise retrieval, larger for more context
 4. **Swap the model** in `src/config.js` to any model available in the Foundry Local catalog
-5. **Customise the UI** — the frontend is a single HTML file with inline CSS, easy to modify
+5. **Customise the UI**: the frontend is a single HTML file with inline CSS, easy to modify
 
 ## License
 

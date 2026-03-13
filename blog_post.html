@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Building Your First Local RAG Application with Foundry Local</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #1a1a2e;
+      --text-muted: #555;
+      --accent: #0078d4;
+      --accent-dark: #005a9e;
+      --code-bg: #f4f4f8;
+      --border: #e0e0e0;
+      --highlight-bg: #e8f4fd;
+      --warning-bg: #fff8e1;
+      --warning-border: #ffc107;
+      --table-header: #f0f4f8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.75;
+      color: var(--text);
+      background: var(--bg);
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      line-height: 1.25;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    h2 {
+      font-size: 1.6rem;
+      margin-top: 2.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      margin-top: 1.8rem;
+      margin-bottom: 0.6rem;
+    }
+
+    p { margin-bottom: 1rem; }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .meta {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin: 1rem 0;
+      display: block;
+    }
+
+    .image-caption {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: -0.5rem;
+      margin-bottom: 1.5rem;
+      font-style: italic;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    code {
+      font-family: "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+      font-size: 0.9em;
+    }
+
+    p code, li code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+      font-size: 0.88em;
+    }
+
+    blockquote {
+      border-left: 4px solid var(--accent);
+      background: var(--highlight-bg);
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+
+    blockquote p:last-child { margin-bottom: 0; }
+
+    .callout {
+      background: var(--warning-bg);
+      border-left: 4px solid var(--warning-border);
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+
+    ul, ol {
+      margin: 0.5rem 0 1.25rem 1.5rem;
+    }
+
+    li { margin-bottom: 0.4rem; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      padding: 0.6rem 0.9rem;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+
+    th {
+      background: var(--table-header);
+      font-weight: 600;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin: 1.25rem 0 1.5rem;
+    }
+
+    .comparison-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+
+    .comparison-card h4 {
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+
+    .comparison-card.rag { border-top: 3px solid #0078d4; }
+    .comparison-card.cag { border-top: 3px solid #7c3aed; }
+
+    .pros { color: #16a34a; }
+    .cons { color: #dc2626; }
+
+    .screenshot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1rem 0 1.5rem;
+    }
+
+    .cta-box {
+      background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.5rem 2rem;
+      margin: 2rem 0;
+      text-align: center;
+    }
+
+    .cta-box h3 { margin-top: 0; }
+
+    .cta-box a {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      padding: 0.6rem 1.5rem;
+      border-radius: 6px;
+      font-weight: 600;
+      margin-top: 0.5rem;
+      text-decoration: none;
+    }
+
+    .cta-box a:hover {
+      background: var(--accent-dark);
+      text-decoration: none;
+    }
+
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-right: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .step-content { flex: 1; }
+
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 1rem; }
+      h1 { font-size: 1.6rem; }
+      h2 { font-size: 1.3rem; }
+      .comparison-grid, .screenshot-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <article>
+
+    <h1>Building Your First Local RAG Application with Foundry Local</h1>
+    <p class="subtitle">A developer's guide to building an offline, mobile-responsive AI support agent using Retrieval-Augmented Generation, the Foundry Local SDK, and JavaScript.</p>
+    <p class="meta">Reading time: approximately 8 minutes</p>
+
+    <!-- ──────────────── INTRODUCTION ──────────────── -->
+
+    <p>
+      Imagine you are a gas field engineer standing beside a pipeline in a remote location. There is no Wi-Fi, no mobile signal, and you need a safety procedure right now. What do you do?
+    </p>
+    <p>
+      This is the exact problem that inspired this project: a <strong>fully offline RAG-powered support agent</strong> that runs entirely on your machine. No cloud. No API keys. No outbound network calls. Just a local language model, a local vector store, and your own documents, all accessible from a browser on any device.
+    </p>
+    <p>
+      In this post, you will learn how it works, how to build your own, and the key architectural decisions behind it. If you have ever wanted to build an AI application that runs locally and answers questions grounded in your own data, this is the place to start.
+    </p>
+
+    <img
+      src="https://raw.githubusercontent.com/leestott/local-rag/main/screenshots/01-landing-page.png"
+      alt="Screenshot of the Gas Field Support Agent landing page, showing a dark-themed chat interface with quick-action buttons for common questions"
+    >
+    <p class="image-caption">The finished application: a browser-based AI support agent that runs entirely on your machine.</p>
+
+    <!-- ──────────────── WHAT IS RAG ──────────────── -->
+
+    <h2>What Is Retrieval-Augmented Generation?</h2>
+
+    <p>
+      <strong>Retrieval-Augmented Generation (RAG)</strong> is a pattern that makes AI models genuinely useful for domain-specific tasks. Rather than hoping the model "knows" the answer from its training data, you:
+    </p>
+    <ol>
+      <li><strong>Retrieve</strong> relevant chunks from your own documents using a vector store</li>
+      <li><strong>Augment</strong> the model's prompt with those chunks as context</li>
+      <li><strong>Generate</strong> a response grounded in your actual data</li>
+    </ol>
+    <p>
+      The result is fewer hallucinations, traceable answers with source attribution, and an AI that works with <em>your</em> content rather than relying on general knowledge.
+    </p>
+    <p>
+      If you are building internal tools, customer support bots, field manuals, or knowledge bases, RAG is the pattern you want.
+    </p>
+
+    <!-- ──────────────── RAG vs CAG ──────────────── -->
+
+    <h2>RAG vs CAG: Understanding the Trade-offs</h2>
+
+    <p>
+      If you have explored AI application patterns before, you have likely encountered <strong>Context-Augmented Generation (CAG)</strong>. Both RAG and CAG solve the same core problem: grounding an AI model's answers in your own content. They take different approaches, and each has genuine strengths and limitations.
+    </p>
+
+    <div class="comparison-grid">
+      <div class="comparison-card rag">
+        <h4>RAG (Retrieval-Augmented Generation)</h4>
+        <p><strong>How it works:</strong> Documents are split into chunks, vectorised, and stored in a database. At query time, the most relevant chunks are retrieved and injected into the prompt.</p>
+        <p class="pros"><strong>Strengths:</strong></p>
+        <ul>
+          <li>Scales to thousands or millions of documents</li>
+          <li>Fine-grained retrieval at chunk level with source attribution</li>
+          <li>Documents can be added or updated dynamically without restarting</li>
+          <li>Token-efficient: only relevant chunks are sent to the model</li>
+          <li>Supports runtime document upload via the web UI</li>
+        </ul>
+        <p class="cons"><strong>Limitations:</strong></p>
+        <ul>
+          <li>More complex architecture: requires a vector store and chunking strategy</li>
+          <li>Retrieval quality depends on chunking parameters and scoring method</li>
+          <li>May miss relevant content if the retrieval step does not surface it</li>
+        </ul>
+      </div>
+      <div class="comparison-card cag">
+        <h4>CAG (Context-Augmented Generation)</h4>
+        <p><strong>How it works:</strong> All documents are loaded at startup. The most relevant ones are selected per query using keyword scoring and injected into the prompt.</p>
+        <p class="pros"><strong>Strengths:</strong></p>
+        <ul>
+          <li>Drastically simpler architecture with no vector database or embeddings</li>
+          <li>All information is always available to the model</li>
+          <li>Minimal dependencies and easy to set up</li>
+          <li>Near-instant document selection</li>
+        </ul>
+        <p class="cons"><strong>Limitations:</strong></p>
+        <ul>
+          <li>Constrained by the model's context window size</li>
+          <li>Best suited to small, curated document sets (tens of documents)</li>
+          <li>Adding documents requires an application restart</li>
+        </ul>
+      </div>
+    </div>
+
+    <blockquote>
+      <p>
+        <strong>Want to compare these patterns hands-on?</strong> There is a <a href="https://github.com/leestott/local-cag">CAG-based implementation</a> of the same gas field scenario using whole-document context injection. Clone both repositories, run them side by side, and see how the architectures differ in practice.
+      </p>
+    </blockquote>
+
+    <h3>When Should You Choose Which?</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Consideration</th>
+          <th>Choose RAG</th>
+          <th>Choose CAG</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Document count</td>
+          <td>Hundreds or thousands</td>
+          <td>Tens of documents</td>
+        </tr>
+        <tr>
+          <td>Document updates</td>
+          <td>Frequent or dynamic (runtime upload)</td>
+          <td>Infrequent (restart to reload)</td>
+        </tr>
+        <tr>
+          <td>Source attribution</td>
+          <td>Per-chunk with relevance scores</td>
+          <td>Per-document</td>
+        </tr>
+        <tr>
+          <td>Setup complexity</td>
+          <td>Moderate (ingestion step required)</td>
+          <td>Minimal</td>
+        </tr>
+        <tr>
+          <td>Query precision</td>
+          <td>Better for large or diverse collections</td>
+          <td>Good for keyword-matchable content</td>
+        </tr>
+        <tr>
+          <td>Infrastructure</td>
+          <td>SQLite vector store (single file)</td>
+          <td>None beyond the runtime</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      For the sample application in this post (20 gas engineering procedure documents with runtime upload), RAG is the clear winner. If your document set is small and static, CAG may be simpler. Both patterns run fully offline using Foundry Local.
+    </p>
+
+    <!-- ──────────────── FOUNDRY LOCAL ──────────────── -->
+
+    <h2>Foundry Local: Your On-Device AI Runtime</h2>
+
+    <p>
+      <a href="https://foundrylocal.ai">Foundry Local</a> is a lightweight runtime from Microsoft that downloads, manages, and serves language models entirely on your device. No cloud account, no API keys, no outbound network calls (after the initial model download).
+    </p>
+
+    <p>What makes it particularly useful for developers:</p>
+    <ul>
+      <li><strong>No GPU required</strong>: runs on CPU or NPU, making it accessible on standard laptops and desktops</li>
+      <li><strong>Native SDK bindings</strong>: in-process inference via the <code>foundry-local-sdk</code> npm package, with no HTTP round-trips to a local server</li>
+      <li><strong>Automatic model management</strong>: downloads, caches, and loads models automatically</li>
+      <li><strong>Hardware-optimised variant selection</strong>: the SDK picks the best variant for your hardware (GPU, NPU, or CPU)</li>
+      <li><strong>Real-time progress callbacks</strong>: ideal for building loading UIs that show download and initialisation progress</li>
+    </ul>
+
+    <p>The integration code is refreshingly minimal:</p>
+
+<pre><code>import { FoundryLocalManager } from "foundry-local-sdk";
+
+// Create a manager and discover models via the catalogue
+const manager = FoundryLocalManager.create({ appName: "gas-field-local-rag" });
+const model = await manager.catalog.getModel("phi-3.5-mini");
+
+// Download if not cached, then load into memory
+if (!model.isCached) {
+  await model.download((progress) =&gt; {
+    console.log(`Download: ${Math.round(progress * 100)}%`);
+  });
+}
+await model.load();
+
+// Create a chat client for direct in-process inference
+const chatClient = model.createChatClient();
+const response = await chatClient.completeChat([
+  { role: "system", content: "You are a helpful assistant." },
+  { role: "user", content: "How do I detect a gas leak?" }
+]);</code></pre>
+
+    <p>
+      That is it. No server configuration, no authentication tokens, no cloud provisioning. The model runs in the same process as your application.
+    </p>
+
+    <!-- ──────────────── THE STACK ──────────────── -->
+
+    <h2>The Technology Stack</h2>
+
+    <p>The sample application is deliberately simple. No frameworks, no build steps, no Docker:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Technology</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AI Model</td>
+          <td><a href="https://foundrylocal.ai">Foundry Local</a> + Phi-3.5 Mini</td>
+          <td>Runs locally via native SDK bindings, no GPU required</td>
+        </tr>
+        <tr>
+          <td>Back end</td>
+          <td>Node.js + Express</td>
+          <td>Lightweight HTTP server, everyone knows it</td>
+        </tr>
+        <tr>
+          <td>Vector Store</td>
+          <td>SQLite (via <code>better-sqlite3</code>)</td>
+          <td>Zero infrastructure, single file on disc</td>
+        </tr>
+        <tr>
+          <td>Retrieval</td>
+          <td>TF-IDF + cosine similarity</td>
+          <td>No embedding model required, fully offline</td>
+        </tr>
+        <tr>
+          <td>Front end</td>
+          <td>Single HTML file with inline CSS</td>
+          <td>No build step, mobile-responsive, field-ready</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>The total dependency footprint is three npm packages: <code>express</code>, <code>foundry-local-sdk</code>, and <code>better-sqlite3</code>.</p>
+
+    <!-- ──────────────── ARCHITECTURE ──────────────── -->
+
+    <h2>Architecture Overview</h2>
+
+    <img
+      src="https://raw.githubusercontent.com/leestott/local-rag/main/screenshots/07-architecture-diagram.png"
+      alt="Architecture diagram showing five layers: Client (HTML/CSS/JS), Server (Express.js), RAG Pipeline (chunker, TF-IDF, chat engine), Data Layer (SQLite), and AI Layer (Foundry Local)"
+    >
+    <p class="image-caption">The five-layer architecture, all running on a single machine.</p>
+
+    <p>The system has five layers, all running on a single machine:</p>
+    <ul>
+      <li><strong>Client layer:</strong> a single HTML file served by Express, with quick-action buttons and a responsive chat interface</li>
+      <li><strong>Server layer:</strong> Express.js starts immediately and serves the UI plus SSE status and chat endpoints</li>
+      <li><strong>RAG pipeline:</strong> the chat engine orchestrates retrieval and generation; the chunker handles TF-IDF vectorisation; the prompts module provides safety-first system instructions</li>
+      <li><strong>Data layer:</strong> SQLite stores document chunks and their TF-IDF vectors; documents live as <code>.md</code> files in the <code>docs/</code> folder</li>
+      <li><strong>AI layer:</strong> Foundry Local runs Phi-3.5 Mini on CPU or NPU via native SDK bindings</li>
+    </ul>
+
+    <!-- ──────────────── BUILDING IT ──────────────── -->
+
+    <h2>Building the Solution Step by Step</h2>
+
+    <h3>Prerequisites</h3>
+
+    <p>You need two things installed on your machine:</p>
+    <ol>
+      <li><strong>Node.js 20 or later:</strong> <a href="https://nodejs.org/">download from nodejs.org</a></li>
+      <li><strong>Foundry Local:</strong> Microsoft's on-device AI runtime:
+<pre><code>winget install Microsoft.FoundryLocal</code></pre>
+      </li>
+    </ol>
+
+    <p>The SDK will automatically download the Phi-3.5 Mini model (approximately 2 GB) the first time you run the application.</p>
+
+    <h3>Getting the Code Running</h3>
+
+<pre><code># Clone the repository
+git clone https://github.com/leestott/local-rag.git
+cd local-rag
+
+# Install dependencies
+npm install
+
+# Ingest the 20 gas engineering documents into the vector store
+npm run ingest
+
+# Start the server
+npm start</code></pre>
+
+    <p>
+      Open <strong>http://127.0.0.1:3000</strong> in your browser. You will see the status indicator whilst the model loads. Once the model is ready, the status changes to "Offline Ready" and you can start chatting.
+    </p>
+
+    <div class="screenshot-grid">
+      <div>
+        <img
+          src="https://raw.githubusercontent.com/leestott/local-rag/main/screenshots/01-landing-page.png"
+          alt="Desktop view of the application showing the chat interface with quick-action buttons"
+        >
+        <p class="image-caption">Desktop view</p>
+      </div>
+      <div>
+        <img
+          src="https://raw.githubusercontent.com/leestott/local-rag/main/screenshots/02-mobile-view.png"
+          alt="Mobile view of the application showing the responsive layout on a smaller screen"
+        >
+        <p class="image-caption">Mobile view</p>
+      </div>
+    </div>
+
+    <!-- ──────────────── HOW THE PIPELINE WORKS ──────────────── -->
+
+    <h2>How the RAG Pipeline Works</h2>
+
+    <p>Let us trace what happens when a user asks: <strong>"How do I detect a gas leak?"</strong></p>
+
+    <img
+      src="https://raw.githubusercontent.com/leestott/local-rag/main/screenshots/08-rag-flow-sequence.png"
+      alt="Sequence diagram showing the RAG query flow: user sends a question, the server retrieves relevant chunks from SQLite, constructs a prompt, sends it to Foundry Local, and streams the response back"
+    >
+    <p class="image-caption">The query flow from browser to model and back.</p>
+
+    <div class="step">
+      <span class="step-number">1</span>
+      <div class="step-content">
+        <strong>Documents are ingested and indexed</strong>
+        <p>When you run <code>npm run ingest</code>, every <code>.md</code> file in the <code>docs/</code> folder is read, parsed (with optional YAML front-matter for title, category, and ID), split into overlapping chunks of approximately 200 tokens, and stored in SQLite with TF-IDF vectors.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">2</span>
+      <div class="step-content">
+        <strong>Model is loaded via the SDK</strong>
+        <p>The Foundry Local SDK discovers the model in the local catalogue and loads it into memory. If the model is not already cached, it downloads it first (with progress streamed to the browser via SSE).</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">3</span>
+      <div class="step-content">
+        <strong>User sends a question</strong>
+        <p>The question arrives at the Express server. The chat engine converts it into a TF-IDF vector, uses an inverted index to find candidate chunks, and scores them using cosine similarity. The top 3 chunks are returned in under 1 ms.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">4</span>
+      <div class="step-content">
+        <strong>Prompt is constructed</strong>
+        <p>The engine builds a messages array containing: the system prompt (with safety-first instructions), the retrieved chunks as context, the conversation history, and the user's question.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">5</span>
+      <div class="step-content">
+        <strong>Model generates a grounded response</strong>
+        <p>The prompt is sent to the locally loaded model via the Foundry Local SDK's native chat client. The response streams back token by token through Server-Sent Events to the browser. Source references with relevance scores are included.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-grid">
+      <div>
+        <img
+          src="https://raw.githubusercontent.com/leestott/local-rag/main/screenshots/03-chat-response.png"
+          alt="Chat response showing safety warnings followed by step-by-step gas leak detection guidance"
+        >
+        <p class="image-caption">A response with safety warnings and step-by-step guidance</p>
+      </div>
+      <div>
+        <img
+          src="https://raw.githubusercontent.com/leestott/local-rag/main/screenshots/04-sources-panel.png"
+          alt="Sources panel showing the specific document chunks referenced in the response with relevance scores"
+        >
+        <p class="image-caption">The sources panel shows which chunks were used and their relevance</p>
+      </div>
+    </div>
+
+    <!-- ──────────────── KEY CODE ──────────────── -->
+
+    <h2>Key Code Walkthrough</h2>
+
+    <h3>The Vector Store (TF-IDF + SQLite)</h3>
+
+    <p>
+      The vector store uses SQLite to persist document chunks alongside their TF-IDF vectors. At query time, an inverted index finds candidate chunks that share terms with the query, then cosine similarity ranks them:
+    </p>
+
+<pre><code>// src/vectorStore.js
+search(query, topK = 5) {
+  const queryTf = termFrequency(query);
+  this._ensureCache(); // Build in-memory cache on first access
+
+  // Use inverted index to find candidates sharing at least one term
+  const candidateIndices = new Set();
+  for (const term of queryTf.keys()) {
+    const indices = this._invertedIndex.get(term);
+    if (indices) {
+      for (const idx of indices) candidateIndices.add(idx);
+    }
+  }
+
+  // Score only candidates, not all rows
+  const scored = [];
+  for (const idx of candidateIndices) {
+    const row = this._rowCache[idx];
+    const score = cosineSimilarity(queryTf, row.tf);
+    if (score &gt; 0) scored.push({ ...row, score });
+  }
+
+  scored.sort((a, b) =&gt; b.score - a.score);
+  return scored.slice(0, topK);
+}</code></pre>
+
+    <p>
+      The inverted index, in-memory row cache, and prepared SQL statements bring retrieval time to sub-millisecond for typical query loads.
+    </p>
+
+    <h3>Why TF-IDF Instead of Embeddings?</h3>
+
+    <p>Most RAG tutorials use embedding models for retrieval. This project uses TF-IDF because:</p>
+    <ul>
+      <li><strong>Fully offline:</strong> no embedding model to download or run</li>
+      <li><strong>Zero latency:</strong> vectorisation is instantaneous (it is just maths on word frequencies)</li>
+      <li><strong>Good enough:</strong> for 20 domain-specific documents, TF-IDF retrieves the right chunks reliably</li>
+      <li><strong>Transparent:</strong> you can inspect the vocabulary and weights, unlike neural embeddings</li>
+    </ul>
+
+    <p>For larger collections or when semantic similarity matters more than keyword overlap, you would swap in an embedding model. For this use case, TF-IDF keeps the stack simple and dependency-free.</p>
+
+    <h3>The System Prompt</h3>
+
+    <p>For safety-critical domains, the system prompt is engineered to prioritise safety, prevent hallucination, and enforce structured responses:</p>
+
+<pre><code>// src/prompts.js
+export const SYSTEM_PROMPT = `You are a local, offline support agent
+for gas field inspection and maintenance engineers.
+
+Behaviour Rules:
+- Always prioritise safety. If a procedure involves risk,
+  explicitly call it out.
+- Do not hallucinate procedures, measurements, or tolerances.
+- If the answer is not in the provided context, say:
+  "This information is not available in the local knowledge base."
+
+Response Format:
+- Summary (1-2 lines)
+- Safety Warnings (if applicable)
+- Step-by-step Guidance
+- Reference (document name + section)`;</code></pre>
+
+    <p>
+      This pattern is transferable to any safety-critical domain: medical devices, electrical work, aviation maintenance, or chemical handling.
+    </p>
+
+    <!-- ──────────────── RUNTIME UPLOAD ──────────────── -->
+
+    <h2>Runtime Document Upload</h2>
+
+    <p>
+      Unlike the CAG approach, RAG supports adding documents without restarting the server. Click the upload button to add new <code>.md</code> or <code>.txt</code> files. They are chunked, vectorised, and indexed immediately.
+    </p>
+
+    <img
+      src="https://raw.githubusercontent.com/leestott/local-rag/main/screenshots/05-upload-document.png"
+      alt="Upload document modal showing a file drop zone and a list of indexed documents with chunk counts"
+    >
+    <p class="image-caption">The upload modal with the complete list of indexed documents.</p>
+
+    <!-- ──────────────── ADAPT FOR YOUR DOMAIN ──────────────── -->
+
+    <h2>Adapting This for Your Own Domain</h2>
+
+    <p>The sample project is designed to be forked and adapted. Here is how to make it yours in four steps:</p>
+
+    <h3>1. Replace the documents</h3>
+    <p>
+      Delete the gas engineering documents in <code>docs/</code> and add your own markdown files. The ingestion pipeline handles any markdown content with optional YAML front-matter:
+    </p>
+
+<pre><code>---
+title: Troubleshooting Widget Errors
+category: Support
+id: KB-001
+---
+
+# Troubleshooting Widget Errors
+...your content here...</code></pre>
+
+    <h3>2. Edit the system prompt</h3>
+    <p>Open <code>src/prompts.js</code> and rewrite the system prompt for your domain. Keep the structure (summary, safety, steps, reference) and update the language to match your users' expectations.</p>
+
+    <h3>3. Tune the retrieval</h3>
+    <p>In <code>src/config.js</code>:</p>
+    <ul>
+      <li><code>chunkSize: 200</code>: smaller chunks give more precise retrieval, less context per chunk</li>
+      <li><code>chunkOverlap: 25</code>: prevents information falling between chunks</li>
+      <li><code>topK: 3</code>: how many chunks to retrieve per query (more gives more context but slower generation)</li>
+    </ul>
+
+    <h3>4. Swap the model</h3>
+    <p>Change <code>config.model</code> in <code>src/config.js</code> to any model available in the Foundry Local catalogue. Smaller models give faster responses on constrained devices; larger models give better quality.</p>
+
+    <!-- ──────────────── MOBILE UI ──────────────── -->
+
+    <h2>Building a Field-Ready UI</h2>
+
+    <p>
+      The front end is a single HTML file with inline CSS. No React, no build tooling, no bundler. This keeps the project accessible to beginners and easy to deploy.
+    </p>
+
+    <p>Design decisions that matter for field use:</p>
+    <ul>
+      <li><strong>Dark, high-contrast theme</strong> with 18px base font size for readability in bright sunlight</li>
+      <li><strong>Large touch targets</strong> (minimum 44px) for operation with gloves or PPE</li>
+      <li><strong>Quick-action buttons</strong> that wrap on mobile so all options are visible without scrolling</li>
+      <li><strong>Responsive layout</strong> that works from 320px to 1920px+ screen widths</li>
+      <li><strong>Streaming responses</strong> via SSE, so the user sees tokens arriving in real time</li>
+    </ul>
+
+    <img
+      src="https://raw.githubusercontent.com/leestott/local-rag/main/screenshots/06-mobile-chat.png"
+      alt="Mobile view of the chat interface showing a conversation with the AI agent on a small screen"
+    >
+    <p class="image-caption">The mobile chat experience, optimised for field use.</p>
+
+    <!-- ──────────────── TESTING ──────────────── -->
+
+    <h2>Testing</h2>
+
+    <p>The project includes unit tests using the built-in Node.js test runner, with no extra test framework needed:</p>
+
+<pre><code># Run all tests
+npm test</code></pre>
+
+    <p>Tests cover the chunker, vector store, configuration, and server endpoints. Use them as a starting point when you adapt the project for your own domain.</p>
+
+    <!-- ──────────────── EXTENDING ──────────────── -->
+
+    <h2>Ideas for Extending the Project</h2>
+
+    <p>Once you have the basics running, there are plenty of directions to explore:</p>
+    <ul>
+      <li><strong>Embedding-based retrieval:</strong> use a local embedding model for better semantic matching on diverse queries</li>
+      <li><strong>Conversation memory:</strong> persist chat history across sessions using local storage or a lightweight database</li>
+      <li><strong>Multi-modal support:</strong> add image-based queries (photographing a fault code, for example)</li>
+      <li><strong>PWA packaging:</strong> make it installable as a standalone offline application on mobile devices</li>
+      <li><strong>Hybrid retrieval:</strong> combine TF-IDF keyword search with semantic embeddings for best results</li>
+      <li><strong>Try the CAG approach:</strong> compare with the <a href="https://github.com/leestott/local-cag">local-cag sample</a> to see which pattern suits your use case</li>
+    </ul>
+
+    <!-- ──────────────── CTA ──────────────── -->
+
+    <div class="cta-box">
+      <h3>Ready to Build Your Own?</h3>
+      <p>
+        Clone the RAG sample, swap in your own documents, and have an offline AI agent running in minutes. Or compare it with the CAG approach to see which pattern suits your use case best.
+      </p>
+      <a href="https://github.com/leestott/local-rag">Get the RAG Sample</a>
+      &nbsp;&nbsp;
+      <a href="https://github.com/leestott/local-cag">Get the CAG Sample</a>
+    </div>
+
+    <!-- ──────────────── SUMMARY ──────────────── -->
+
+    <h2>Summary</h2>
+
+    <p>
+      Building a local RAG application does not require a PhD in machine learning or a cloud budget. With Foundry Local, Node.js, and SQLite, you can create a fully offline, mobile-responsive AI agent that answers questions grounded in your own documents.
+    </p>
+
+    <p>The key takeaways:</p>
+    <ol>
+      <li><strong>RAG is ideal for scalable, dynamic document sets</strong> where you need fine-grained retrieval with source attribution. Documents can be added at runtime without restarting.</li>
+      <li><strong>CAG is simpler</strong> when you have a small, stable set of documents that fit in the context window. See the <a href="https://github.com/leestott/local-cag">local-cag sample</a> to compare.</li>
+      <li><strong>Foundry Local</strong> makes on-device AI accessible: native SDK bindings, in-process inference, automatic model selection, and no GPU required.</li>
+      <li><strong>TF-IDF + SQLite</strong> is a viable vector store for small-to-medium collections, with sub-millisecond retrieval thanks to inverted indexing and in-memory caching.</li>
+      <li><strong>Start simple, iterate outwards.</strong> Begin with RAG and a handful of documents. If your needs are simpler, try CAG. Both patterns run entirely offline.</li>
+    </ol>
+
+    <p>
+      Clone the repository, swap in your own documents, and start building. The best way to learn is to get your hands on the code.
+    </p>
+
+  </article>
+
+  <footer>
+    <p>
+      This project is open source under the MIT licence. It is a scenario sample for learning and experimentation, not production medical or safety advice.
+    </p>
+    <p>
+      <a href="https://github.com/leestott/local-rag">local-rag on GitHub</a> &middot;
+      <a href="https://github.com/leestott/local-cag">local-cag on GitHub</a> &middot;
+      <a href="https://foundrylocal.ai">Foundry Local</a>
+    </p>
+  </footer>
+
+</body>
+</html>
