@@ -225,9 +225,14 @@
       padding: 8px 16px;
       display: flex;
       gap: 8px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
       background: var(--surface);
     }
+    #quick-actions::-webkit-scrollbar { display: none; }
     .quick-btn {
       background: var(--bg);
       border: 1px solid var(--border);
@@ -237,6 +242,7 @@
       font-size: 0.82rem;
       cursor: pointer;
       white-space: nowrap;
+      flex-shrink: 0;
       min-height: 44px;
       touch-action: manipulation;
       transition: border-color 0.15s;
@@ -387,17 +393,25 @@
       header { padding: 10px 12px; }
       header h1 { font-size: 0.95rem; gap: 6px; }
       header h1 .icon { font-size: 1.2rem; }
+      header h1 .title-text { display: none; }
+      header h1::after { content: "Gas Field Support"; font-size: 0.95rem; }
       .controls { gap: 8px; }
       .toggle-label { font-size: 0.7rem; }
       .status { font-size: 0.7rem; padding: 3px 8px; }
       .message { max-width: 98%; padding: 10px 14px; }
       #quick-actions {
-        overflow-x: auto;
-        flex-wrap: nowrap;
         padding: 6px 10px;
         gap: 6px;
+        flex-wrap: wrap;
+        overflow-x: visible;
       }
-      .quick-btn { flex-shrink: 0; padding: 8px 12px; font-size: 0.78rem; min-height: 40px; }
+      .quick-btn {
+        flex-shrink: 1;
+        white-space: normal;
+        padding: 8px 12px;
+        font-size: 0.78rem;
+        min-height: 40px;
+      }
       #chat { padding: 10px; gap: 12px; }
       #input-area { padding: 8px 10px; gap: 8px; }
       #input-area textarea { padding: 10px 12px; font-size: 0.95rem; }
@@ -409,10 +423,9 @@
       .sources { font-size: 0.72rem; }
       .source-item { flex-direction: column; gap: 2px; }
     }
-    @media (max-width: 380px) {
+    @media (max-width: 340px) {
       html { font-size: 15px; }
-      header h1 .title-text { display: none; }
-      header h1::after { content: "Gas Support"; font-size: 0.95rem; }
+      header h1::after { content: "Gas Support"; font-size: 0.9rem; }
       .quick-btn { padding: 6px 10px; font-size: 0.72rem; }
       #send-btn { min-width: 56px; padding: 10px 12px; }
     }
